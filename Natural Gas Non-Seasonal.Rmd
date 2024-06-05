@@ -1,0 +1,92 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+---
+title: "Natural Gas Stock Prices"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(rugarch)
+library(tseries)
+```
+This dataset provides comprehensive and up-to-date information on stock prices related to oil, gas, and other fuels. For the purpose of this project, I've considered only the prices of natural gas.
+The dataset offers valuable insights for the energy sector, supporting trend analysis, academic research, trading strategies, and risk management. It provides comprehensive information on price fluctuations and trading volumes of natural gas, enabling stakeholders to anticipate market directions and make informed decisions.
+
+## Time Series Plot
+```{r cars}
+data <- read_excel("C:/Users/Salman/Desktop/Only Crude Oil.xlsx", sheet = "Sheet2")
+
+data$Date <- as.Date(data$Date)
+data$Close <- as.numeric(data$Close)
+
+plot(data$Date, data$Close, type = "l", xlab = "Date", ylab = "Natural Gas Price",
+     main = "Natural Gas Stock Price Time Series")
+
+data <- na.omit(data)
+
+hist(data$Close, breaks = 20, main = "Histogram of Natural Gas Prices", xlab = "Natural Gas Price")
+```
+
+## Stationarity Test
+The Dicky-Fuller test indicates that this data is stationary.
+
+```{r pressure, echo=TRUE}
+ts_data <- ts(data$Close, frequency = 1)
+adf_test <- adf.test(ts_data)
+print(adf_test)
+
+par(mfrow=c(2,1), mar=c(4, 4, 2, 1))
+acf(ts_data, main="ACF of Natural Gas Prices")
+pacf(ts_data, main="PACF of Natural Gas Prices")
+
+```
+
+
+## GARCH model
+```{R Press, echo =TRUE}
+ts_data <- ts(data$Close, frequency = 1)
+
+garch_spec <- ugarchspec(mean.model = list(armaOrder = c(1, 1)),
+                         variance.model = list(model = "sGARCH"),
+                         distribution.model = "norm")
+garch_fit <- ugarchfit(spec = garch_spec, data = ts_data)
+
+print(garch_fit)
+```
+
+
+## Residual Analysis
+The residual analysis indicates that our model is pretty good. GARCH model was used as this data is related to the stock market. The result of the Ljung-Box test gives us a positive indication of our model.
+
+``` {R plot, echo=TRUE}
+std_res <- residuals(garch_fit, standardize = TRUE)
+
+qqnorm(std_res)
+qqline(std_res)
+
+acf(std_res)
+
+ljung_box_test <- Box.test(std_res, lag = 10, type = "Ljung-Box")
+print(ljung_box_test)
+```
+
+
+## Forecasting
+``` {r station, echo=TRUE}
+garch_forecast <- ugarchforecast(garch_fit, n.ahead = 10)
+print(garch_forecast)
+
+plot(garch_forecast, which = 1)
+```
+
+
+
+
